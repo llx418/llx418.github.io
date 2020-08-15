@@ -1,6 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>WMCTF:welcome-to-ctf</title>
+    <url>/2020/08/15/welcome-to-ctf/</url>
+    <content><![CDATA[<a id="more"></a>
+<p>这道题先不说算法，技术层面上就很有意思，反调试函数，硬件断点设置，以及VEH,UEF设置和注册都是借助GetProcAddress函数完成的，导致从import表无法查找到相关函数信息，有关VEH和UEF的相关知识可以看下大佬的这篇文章<a href="https://bbs.pediy.com/thread-226235.htm%E3%80%82">https://bbs.pediy.com/thread-226235.htm。</a></p>
+<p>程序的反调试函数是NTInformationProcess，如果装了sharpOD后可以不用对其进行patch，可以直接到main函数，但main函数其实是一个假的验证函数，就是一个base64解密，但如何进入到正确的验证流程，还是得分析VEH和UEF在程序中的应用。先是对GetProcAddress函数下断。</p>
+<p><img src="/2020/08/15/welcome-to-ctf/1.PNG" alt="1"></p>
+<p>这个RtlAddVectoredExceptionHandler函数其实就是添加VEH异常处理函数</p>
+<p><img src="/2020/08/15/welcome-to-ctf/1597483055033.png" alt="1597483055033"></p>
+<p>这个SetUnhandledExceptionFilter是异常捕获主要用于对反调试检测触发，导致程序崩溃</p>
+<p><img src="/2020/08/15/welcome-to-ctf/1597483731423.png" alt="1597483731423"></p>
+<p><img src="/2020/08/15/welcome-to-ctf/1597483759671.png" alt="1597483759671"></p>
+<p>这个getthreadcontext和setthreadcontext函数是配套使用的主要和硬件断点设置有关，在官方wp中也说了程序设置了4个硬件断点，刚好这一对函数也调用了四次。具体的硬件断点查看主要0x40121c处，这个可以从对SetUnhandledExceptionFilter的调用中得到信息。这个反调试函数也是真的隐藏的够深，真的感觉出题人用尽心思。</p>
+<p><img src="/2020/08/15/welcome-to-ctf/1597484393338.png" alt="1597484393338"></p>
+<p><img src="/2020/08/15/welcome-to-ctf/1597484117807.png" alt="1597484117807"></p>
+<p><img src="/2020/08/15/welcome-to-ctf/1597492796065.png" alt="1597492796065"></p>
+<p>可以看到里面正好有四个if语句刚好是四个硬件断点处分别对四个硬件断点做了VEH注册，当程序执行到硬件断点处会触发异常处理函数。对if处下断。</p>
+<p><img src="/2020/08/15/welcome-to-ctf/1597493597566.png" alt="1597493597566"></p>
+<p>可以看到0x4027C8是main函数中那个假的验证函数，当判断通过后修改了eip为0x402883，因此在0x402883才是真正的验证函数：</p>
+<p><img src="/2020/08/15/welcome-to-ctf/1597494257162.png" alt="1597494257162"></p>
+<p>整个一套流程就是魔改base64.decode()-&gt;RSA-768-&gt;x^3+z^3+80435758145817515^3=42。但是0x402316里面的表还不是真正魔改后的表。在第VEH注册函数中第三个判断又会对表进行修改，我是是真的吐了。后续调试的话就不能对main函数下断点了，因为有sharpOD的存在导致异常处理不能在调试过程中执行，只能对正确的判断函数下断。RSA-768的特征是从内存中看到它的n值判断来的，上网查它的p和q都有，三元三次方程则是根据看到了80435758145817515推测出来，但具体判断等于42在哪还是希望哪位师傅看到了能够指点一下。最后就是解密脚本了。</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment">#coding=utf-8</span></span><br><span class="line"><span class="keyword">import</span> gmpy2</span><br><span class="line"><span class="keyword">import</span> base64</span><br><span class="line"><span class="keyword">import</span> string</span><br><span class="line"><span class="keyword">from</span> struct <span class="keyword">import</span> *</span><br><span class="line">stable=<span class="string">&quot;FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF 09 FF FF FF 36 3F 08 2E 0C 04 1B 0A 00 27 2F FF FF FF FF FF FF FF 1D 35 29 0B 11 3B 05 31 15 07 10 23 28 02 26 18 37 1E 3C 1A 32 22 06 1F 2D 34 FF FF FF FF FF FF 19 17 30 3A 13 2C 0F 3E 33 38 0D 1C 01 12 14 16 3D 0E 20 2B 39 25 03 2A 21 24 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF&quot;</span></span><br><span class="line">stable=stable.replace(<span class="string">&#x27; &#x27;</span>,<span class="string">&#x27;,&#x27;</span>)</span><br><span class="line">b64stable=[]</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">0</span>,len(stable),<span class="number">3</span>):</span><br><span class="line">    tmp=<span class="string">&quot;&quot;</span></span><br><span class="line">    tmp+=stable[i]</span><br><span class="line">    tmp+=stable[i+<span class="number">1</span>]</span><br><span class="line">    b64stable.append(int(tmp,<span class="number">16</span>))</span><br><span class="line">    <span class="comment">#print tmp</span></span><br><span class="line">table=[<span class="string">&#x27;&#x27;</span>]*<span class="number">64</span></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> range(len(b64stable)):</span><br><span class="line">    <span class="keyword">if</span> b64stable[i]!=<span class="number">255</span>:</span><br><span class="line">        table[b64stable[i]]=i</span><br><span class="line"><span class="comment">#print len(table)</span></span><br><span class="line">string1=<span class="string">&quot;&quot;</span>.join(map(chr,table))</span><br><span class="line"><span class="keyword">print</span> string1</span><br><span class="line">string2=<span class="string">&quot;ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/&quot;</span></span><br><span class="line">n=<span class="number">1230186684530117755130494958384962720772853569595334792197322452151726400507263657518745202199786469389956474942774063845925192557326303453731548268507917026122142913461670429214311602221240479274737794080665351419597459856902143413</span></span><br><span class="line">p = <span class="number">33478071698956898786044169848212690817704794983713768568912431388982883793878002287614711652531743087737814467999489</span></span><br><span class="line">q = <span class="number">36746043666799590428244633799627952632279158164343087642676032283815739666511279233373417143396810270092798736308917</span></span><br><span class="line">d=<span class="number">0x10001</span></span><br><span class="line">m=<span class="number">5803427745647280975433812866345295</span> </span><br><span class="line"><span class="comment">#x^3+y^3+z^3=42 z确定z=80435758145817515，此处的m为xy拼接后的值</span></span><br><span class="line">phiN = (p - <span class="number">1</span>) * (q - <span class="number">1</span>) </span><br><span class="line">e = gmpy2.invert(d, phiN)</span><br><span class="line"><span class="keyword">print</span> <span class="string">&#x27;e =&#x27;</span>, hex(e)</span><br><span class="line">enc = pow(m, e, n)</span><br><span class="line"><span class="keyword">print</span> enc</span><br><span class="line">b64 = hex(enc)[<span class="number">2</span>:]</span><br><span class="line"><span class="keyword">print</span> len(b64)</span><br><span class="line">tmp=<span class="string">b&quot;&quot;</span></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">0</span>,len(b64),<span class="number">2</span>):</span><br><span class="line">    tmp+=chr(int(b64[i:i+<span class="number">2</span>],<span class="number">16</span>))</span><br><span class="line">flag = <span class="string">&#x27;WMCTF&#123;&#x27;</span> + tmp.encode(<span class="string">&quot;base64&quot;</span>).translate(string.maketrans(string2,string1)).replace(<span class="string">&#x27;\n&#x27;</span>, <span class="string">&#x27;&#x27;</span>) + <span class="string">&#x27;&#125;&#x27;</span> </span><br><span class="line"><span class="keyword">print</span> flag</span><br></pre></td></tr></table></figure>]]></content>
+      <categories>
+        <category>windows-reverse</category>
+      </categories>
+      <tags>
+        <tag>anti-debug</tag>
+        <tag>UEF</tag>
+        <tag>VEH</tag>
+        <tag>RSA</tag>
+        <tag>魔改base64</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Hello World</title>
     <url>/2020/08/13/hello-world/</url>
     <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
@@ -20,40 +53,6 @@
       <tags>
         <tag>reverse</tag>
         <tag>new</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>WMCTF:welcome-to-ctf</title>
-    <url>/2020/08/15/welcome-to-ctf/</url>
-    <content><![CDATA[<p>这道题先不说算法，技术层面上就很有意思，反调试函数，硬件断点设置，以及VEH,UEF设置和注册都是借助GetProcAddress函数完成的，导致从import表无法查找到相关函数信息，有关VEH和UEF的相关知识可以看下大佬的这篇文章<a href="https://bbs.pediy.com/thread-226235.htm%E3%80%82">https://bbs.pediy.com/thread-226235.htm。</a></p>
-<p>程序的反调试函数是NTInformationProcess，如果装了sharpOD后可以不用对其进行patch，可以直接到main函数，但main函数其实是一个假的验证函数，就是一个base64解密，但如何进入到正确的验证流程，还是得分析VEH和UEF在程序中的应用。先是对GetProcAddress函数下断。</p>
-<p><img src="/2020/08/15/welcome-to-ctf/1.PNG" alt="1"></p>
-<p>这个RtlAddVectoredExceptionHandler函数其实就是添加VEH异常处理函数</p>
-<p><img src="/2020/08/15/welcome-to-ctf/1597483055033.png" alt="1597483055033"></p>
-<p>这个SetUnhandledExceptionFilter是异常捕获主要用于对反调试检测触发，导致程序崩溃</p>
-<p><img src="/2020/08/15/welcome-to-ctf/1597483731423.png" alt="1597483731423"></p>
-<p><img src="/2020/08/15/welcome-to-ctf/1597483759671.png" alt="1597483759671"></p>
-<p>这个getthreadcontext和setthreadcontext函数是配套使用的主要和硬件断点设置有关，在官方wp中也说了程序设置了4个硬件断点，刚好这一对函数也调用了四次。具体的硬件断点查看主要0x40121c处，这个可以从对SetUnhandledExceptionFilter的调用中得到信息。这个反调试函数也是真的隐藏的够深，真的感觉出题人用尽心思。</p>
-<p><img src="/2020/08/15/welcome-to-ctf/1597484393338.png" alt="1597484393338"></p>
-<p><img src="/2020/08/15/welcome-to-ctf/1597484117807.png" alt="1597484117807"></p>
-<p><img src="/2020/08/15/welcome-to-ctf/1597492796065.png" alt="1597492796065"></p>
-<p>可以看到里面正好有四个if语句刚好是四个硬件断点处分别对四个硬件断点做了VEH注册，当程序执行到硬件断点处会触发异常处理函数。对if处下断。</p>
-<p><img src="/2020/08/15/welcome-to-ctf/1597493597566.png" alt="1597493597566"></p>
-<p>可以看到0x4027C8是main函数中那个假的验证函数，当判断通过后修改了eip为0x402883，因此在0x402883才是真正的验证函数：</p>
-<p><img src="/2020/08/15/welcome-to-ctf/1597494257162.png" alt="1597494257162"></p>
-<p>整个一套流程就是魔改base64.decode()-&gt;RSA-768-&gt;x^3+z^3+80435758145817515^3=42。但是0x402316里面的表还不是真正魔改后的表。在第VEH注册函数中第三个判断又会对表进行修改，我是是真的吐了。后续调试的话就不能对main函数下断点了，因为有sharpOD的存在导致异常处理不能在调试过程中执行，只能对正确的判断函数下断。RSA-768的特征是从内存中看到它的n值判断来的，上网查它的p和q都有，三元三次方程则是根据看到了80435758145817515推测出来，但具体判断等于42在哪还是希望哪位师傅看到了能够指点一下。最后就是解密脚本了。</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment">#coding=utf-8</span></span><br><span class="line"><span class="keyword">import</span> gmpy2</span><br><span class="line"><span class="keyword">import</span> base64</span><br><span class="line"><span class="keyword">import</span> string</span><br><span class="line"><span class="keyword">from</span> struct <span class="keyword">import</span> *</span><br><span class="line">stable=<span class="string">&quot;FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF 09 FF FF FF 36 3F 08 2E 0C 04 1B 0A 00 27 2F FF FF FF FF FF FF FF 1D 35 29 0B 11 3B 05 31 15 07 10 23 28 02 26 18 37 1E 3C 1A 32 22 06 1F 2D 34 FF FF FF FF FF FF 19 17 30 3A 13 2C 0F 3E 33 38 0D 1C 01 12 14 16 3D 0E 20 2B 39 25 03 2A 21 24 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF&quot;</span></span><br><span class="line">stable=stable.replace(<span class="string">&#x27; &#x27;</span>,<span class="string">&#x27;,&#x27;</span>)</span><br><span class="line">b64stable=[]</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">0</span>,len(stable),<span class="number">3</span>):</span><br><span class="line">    tmp=<span class="string">&quot;&quot;</span></span><br><span class="line">    tmp+=stable[i]</span><br><span class="line">    tmp+=stable[i+<span class="number">1</span>]</span><br><span class="line">    b64stable.append(int(tmp,<span class="number">16</span>))</span><br><span class="line">    <span class="comment">#print tmp</span></span><br><span class="line">table=[<span class="string">&#x27;&#x27;</span>]*<span class="number">64</span></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> range(len(b64stable)):</span><br><span class="line">    <span class="keyword">if</span> b64stable[i]!=<span class="number">255</span>:</span><br><span class="line">        table[b64stable[i]]=i</span><br><span class="line"><span class="comment">#print len(table)</span></span><br><span class="line">string1=<span class="string">&quot;&quot;</span>.join(map(chr,table))</span><br><span class="line"><span class="keyword">print</span> string1</span><br><span class="line">string2=<span class="string">&quot;ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/&quot;</span></span><br><span class="line">n=<span class="number">1230186684530117755130494958384962720772853569595334792197322452151726400507263657518745202199786469389956474942774063845925192557326303453731548268507917026122142913461670429214311602221240479274737794080665351419597459856902143413</span></span><br><span class="line">p = <span class="number">33478071698956898786044169848212690817704794983713768568912431388982883793878002287614711652531743087737814467999489</span></span><br><span class="line">q = <span class="number">36746043666799590428244633799627952632279158164343087642676032283815739666511279233373417143396810270092798736308917</span></span><br><span class="line">d=<span class="number">0x10001</span></span><br><span class="line">m=<span class="number">5803427745647280975433812866345295</span> </span><br><span class="line"><span class="comment">#x^3+y^3+z^3=42 z确定z=80435758145817515，此处的m为xy拼接后的值</span></span><br><span class="line">phiN = (p - <span class="number">1</span>) * (q - <span class="number">1</span>) </span><br><span class="line">e = gmpy2.invert(d, phiN)</span><br><span class="line"><span class="keyword">print</span> <span class="string">&#x27;e =&#x27;</span>, hex(e)</span><br><span class="line">enc = pow(m, e, n)</span><br><span class="line"><span class="keyword">print</span> enc</span><br><span class="line">b64 = hex(enc)[<span class="number">2</span>:]</span><br><span class="line"><span class="keyword">print</span> len(b64)</span><br><span class="line">tmp=<span class="string">b&quot;&quot;</span></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">0</span>,len(b64),<span class="number">2</span>):</span><br><span class="line">    tmp+=chr(int(b64[i:i+<span class="number">2</span>],<span class="number">16</span>))</span><br><span class="line">flag = <span class="string">&#x27;WMCTF&#123;&#x27;</span> + tmp.encode(<span class="string">&quot;base64&quot;</span>).translate(string.maketrans(string2,string1)).replace(<span class="string">&#x27;\n&#x27;</span>, <span class="string">&#x27;&#x27;</span>) + <span class="string">&#x27;&#125;&#x27;</span> </span><br><span class="line"><span class="keyword">print</span> flag</span><br></pre></td></tr></table></figure>
-
-]]></content>
-      <categories>
-        <category>windows-reverse</category>
-      </categories>
-      <tags>
-        <tag>anti-debug</tag>
-        <tag>UEF</tag>
-        <tag>VEH</tag>
-        <tag>RSA</tag>
-        <tag>魔改base64</tag>
       </tags>
   </entry>
 </search>
