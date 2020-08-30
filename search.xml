@@ -1,6 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>test</title>
+    <url>/2020/08/30/test/</url>
+    <content><![CDATA[]]></content>
+  </entry>
+  <entry>
+    <title>深度fuzz:afl-fuzz+cov</title>
+    <url>/2020/08/17/afl-fuzz-cov/</url>
+    <content><![CDATA[<p>上周临时接了老师的安排要对libjpeg-turbo这个软件进行深度fuzz，相比于常规的fuzz（丢入种子，就在那等crash），还要求对fuzz过程中对代码覆盖率尽可能的高，以提升爆出crash的可能性。这就需要将afl-fuzz与代码覆盖率工具afl-cov结合使用起来，通过对fuzz过程未能执行的代码进行分析，对于限制种子通行一些无关的判断（如种子格式，大小等）通过修改源码的方式直接跳过。一下就以libjpeg软件为例，中间也会穿插下编译方面的小知识做下深度fuzz的过程解读。</p>
+<p>libjpeg-turbo是一个图像处理软件，里面有很多的库是被一些著名大型软件调用的如google浏览器，火狐浏览器等，因此如果能爆出它动态链接库的洞em……（我也只是想想）。</p>
+<p>先从编译开始说起吧，一般利用afl-fuzz首先都必须拿到目标源码利用afl专门的编译器afl-gcc，afl-g++进行编译，而一般在Linux里工程工程类源码都自带configure或CMakeLists.txt批处理编译文件，但一般这些文件的都指定编译器为gcc，g++，就需要对环境变量进行修改。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">export CC&#x3D;afl-gcc；export CXX&#x3D;afl-g++</span><br></pre></td></tr></table></figure>
+
+<p>然后./configure文件或者执行cmake命令就可以产生makefile了。</p>
+<p>afl-cov是一个方便观察fuzz过程中执行过的C语句的一款插件，使用的话<a href="https://github.com/mrash/afl-cov">https://github.com/mrash/afl-cov</a> 上有，和样例不同的是，目标如果是工程类文件需要在执行cmake时加上-DCMAKE_C_FLAGS=”-fprofile-arcs -ftest-coverage”，configure文件则需加上CFLAGS=”fprofile-arcs -ftest-coverage”，注意这个编译用的是gcc编译器，启动afl-cov的话里面它的–coverage-cmd的内容还需要根据你的种子输入方式来设置，如果是命令行输入则需要加上cat AFL_FILE|”目标文件执行命令”，如果是文件输入则不需要加上，这里小编在命令执行的过程中也出现了些问题lcov: ERROR: no valid records found in tracefile，后面查找了相关资料发现是因为gcc版本的问题，当小编用gcc&lt;8的版本就能执行成功了。</p>
+<p>后续的话，就可以路径分析了。</p>
+<p><img src="/2020/08/17/afl-fuzz-cov/1597665140917.png" alt="1597665140917"></p>
+<p><img src="/2020/08/17/afl-fuzz-cov/1597665214580.png" alt="1597665214580"></p>
+<p>深度fuzz其实也需要对源码的修改，但这种修改只能基于对一些因为种子的内容导致一些文件检测，校验判断不能通过导致不能深度执行，但不能修改其和内存有关的语句。如果能产生crash，可以反过来修改文件内容从过通过这些判断，可以真正产生crash，后续小编也会尝试这种操作，看能否提高crash的触发概率。</p>
+]]></content>
+      <tags>
+        <tag>afl-fuzz，afl-cov，cmake</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>WMCTF:welcome-to-ctf</title>
     <url>/2020/08/15/welcome-to-ctf/</url>
     <content><![CDATA[<a id="more"></a>
@@ -31,25 +55,6 @@
         <tag>VEH</tag>
         <tag>RSA</tag>
         <tag>魔改base64</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>深度fuzz:afl-fuzz+cov</title>
-    <url>/2020/08/17/afl-fuzz-cov/</url>
-    <content><![CDATA[<p>上周临时接了老师的安排要对libjpeg-turbo这个软件进行深度fuzz，相比于常规的fuzz（丢入种子，就在那等crash），还要求对fuzz过程中对代码覆盖率尽可能的高，以提升爆出crash的可能性。这就需要将afl-fuzz与代码覆盖率工具afl-cov结合使用起来，通过对fuzz过程未能执行的代码进行分析，对于限制种子通行一些无关的判断（如种子格式，大小等）通过修改源码的方式直接跳过。一下就以libjpeg软件为例，中间也会穿插下编译方面的小知识做下深度fuzz的过程解读。</p>
-<p>libjpeg-turbo是一个图像处理软件，里面有很多的库是被一些著名大型软件调用的如google浏览器，火狐浏览器等，因此如果能爆出它动态链接库的洞em……（我也只是想想）。</p>
-<p>先从编译开始说起吧，一般利用afl-fuzz首先都必须拿到目标源码利用afl专门的编译器afl-gcc，afl-g++进行编译，而一般在Linux里工程工程类源码都自带configure或CMakeLists.txt批处理编译文件，但一般这些文件的都指定编译器为gcc，g++，就需要对环境变量进行修改。</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">export CC&#x3D;afl-gcc；export CXX&#x3D;afl-g++</span><br></pre></td></tr></table></figure>
-
-<p>然后./configure文件或者执行cmake命令就可以产生makefile了。</p>
-<p>afl-cov是一个方便观察fuzz过程中执行过的C语句的一款插件，使用的话<a href="https://github.com/mrash/afl-cov">https://github.com/mrash/afl-cov</a> 上有，和样例不同的是，目标如果是工程类文件需要在执行cmake时加上-DCMAKE_C_FLAGS=”-fprofile-arcs -ftest-coverage”，configure文件则需加上CFLAGS=”fprofile-arcs -ftest-coverage”，注意这个编译用的是gcc编译器，启动afl-cov的话里面它的–coverage-cmd的内容还需要根据你的种子输入方式来设置，如果是命令行输入则需要加上cat AFL_FILE|”目标文件执行命令”，如果是文件输入则不需要加上，这里小编在命令执行的过程中也出现了些问题lcov: ERROR: no valid records found in tracefile，后面查找了相关资料发现是因为gcc版本的问题，当小编用gcc&lt;8的版本就能执行成功了。</p>
-<p>后续的话，就可以路径分析了。</p>
-<p><img src="/2020/08/17/afl-fuzz-cov/1597665140917.png" alt="1597665140917"></p>
-<p><img src="/2020/08/17/afl-fuzz-cov/1597665214580.png" alt="1597665214580"></p>
-<p>深度fuzz其实也需要对源码的修改，但这种修改只能基于对一些因为种子的内容导致一些文件检测，校验判断不能通过导致不能深度执行，但不能修改其和内存有关的语句。如果能产生crash，可以反过来修改文件内容从过通过这些判断，可以真正产生crash，后续小编也会尝试这种操作，看能否提高crash的触发概率。</p>
-]]></content>
-      <tags>
-        <tag>afl-fuzz，afl-cov，cmake</tag>
       </tags>
   </entry>
 </search>
