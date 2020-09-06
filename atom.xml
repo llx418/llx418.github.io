@@ -6,7 +6,7 @@
   <link href="http://yoursite.com/atom.xml" rel="self"/>
   
   <link href="http://yoursite.com/"/>
-  <updated>2020-08-31T14:12:32.727Z</updated>
+  <updated>2020-09-06T11:08:19.994Z</updated>
   <id>http://yoursite.com/</id>
   
   <author>
@@ -15,6 +15,19 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>QWB-re2</title>
+    <link href="http://yoursite.com/2020/09/06/QWB-re2/"/>
+    <id>http://yoursite.com/2020/09/06/QWB-re2/</id>
+    <published>2020-09-06T11:08:19.000Z</published>
+    <updated>2020-09-06T11:08:19.994Z</updated>
+    
+    
+    
+    
+    
+  </entry>
   
   <entry>
     <title>QWB-re1</title>
