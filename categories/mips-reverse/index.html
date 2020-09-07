@@ -13,7 +13,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>
-    深度fuzz:afl-fuzz+cov |  a member of BOI
+    mips-reverse |  a member of BOI
   </title>
   <meta name="generator" content="hexo-theme-ayer">
   
@@ -59,162 +59,56 @@
       
     <main class="content on">
       <section class="outer">
-  <article
-  id="post-afl-fuzz-cov"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
+  <article class="articles">
     
-    <header class="article-header">
+    
+    <h1 class="page-type-title">mips-reverse</h1>
+    
+    
+  
+  
+  
+  
+  
+  
+  <div class="archives-wrap">
+    <div class="archive-year-wrap">
+      <a href="/archives/2020" class="archive-year">2020</a>
+    </div>
+    <div class="archives">
+      
+      <article class="archive-article archive-type-post">
+  <div class="archive-article-inner">
+    <header class="archive-article-header">
+      <a href="/2020/09/06/QWB-re2/" class="archive-article-date">
+  <time datetime="2020-09-06T11:08:19.993Z" itemprop="datePublished">09/06</time>
+</a>
        
-<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  深度fuzz:afl-fuzz+cov
-</h1>
+<h2 itemprop="name">
+  <a class="archive-article-title" href="/2020/09/06/QWB-re2/"
+    >QWB-firmware_blog</a> 
+</h2>
  
 
     </header>
-     
-    <div class="article-meta">
-      <a href="/2020/08/17/afl-fuzz-cov/" class="article-date">
-  <time datetime="2020-08-17T00:30:47.674Z" itemprop="datePublished">2020-08-17</time>
-</a>   
-<div class="word_count">
-    <span class="post-time">
-        <span class="post-meta-item-icon">
-            <i class="ri-quill-pen-line"></i>
-            <span class="post-meta-item-text"> Word count:</span>
-            <span class="post-count">723</span>
-        </span>
-    </span>
-
-    <span class="post-time">
-        &nbsp; | &nbsp;
-        <span class="post-meta-item-icon">
-            <i class="ri-book-open-line"></i>
-            <span class="post-meta-item-text"> Reading time≈</span>
-            <span class="post-count">2 min</span>
-        </span>
-    </span>
-</div>
- 
-    </div>
+    
       
-
-
-
-  
-    <div class="article-entry" itemprop="articleBody">
-       
-  <p>上周临时接了老师的安排要对libjpeg-turbo这个软件进行深度fuzz，相比于常规的fuzz（丢入种子，就在那等crash），还要求对fuzz过程中对代码覆盖率尽可能的高，以提升爆出crash的可能性。这就需要将afl-fuzz与代码覆盖率工具afl-cov结合使用起来，通过对fuzz过程未能执行的代码进行分析，对于限制种子通行一些无关的判断（如种子格式，大小等）通过修改源码的方式直接跳过。一下就以libjpeg软件为例，中间也会穿插下编译方面的小知识做下深度fuzz的过程解读。</p>
-<p>libjpeg-turbo是一个图像处理软件，里面有很多的库是被一些著名大型软件调用的如google浏览器，火狐浏览器等，因此如果能爆出它动态链接库的洞em……（我也只是想想）。</p>
-<p>先从编译开始说起吧，一般利用afl-fuzz首先都必须拿到目标源码利用afl专门的编译器afl-gcc，afl-g++进行编译，而一般在Linux里工程工程类源码都自带configure或CMakeLists.txt批处理编译文件，但一般这些文件的都指定编译器为gcc，g++，就需要对环境变量进行修改。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">export CC&#x3D;afl-gcc；export CXX&#x3D;afl-g++</span><br></pre></td></tr></table></figure>
-
-<p>然后./configure文件或者执行cmake命令就可以产生makefile了。</p>
-<p>afl-cov是一个方便观察fuzz过程中执行过的C语句的一款插件，使用的话<a target="_blank" rel="noopener" href="https://github.com/mrash/afl-cov">https://github.com/mrash/afl-cov</a> 上有，和样例不同的是，目标如果是工程类文件需要在执行cmake时加上-DCMAKE_C_FLAGS=”-fprofile-arcs -ftest-coverage”，configure文件则需加上CFLAGS=”fprofile-arcs -ftest-coverage”，注意这个编译用的是gcc编译器，启动afl-cov的话里面它的–coverage-cmd的内容还需要根据你的种子输入方式来设置，如果是命令行输入则需要加上cat AFL_FILE|”目标文件执行命令”，如果是文件输入则不需要加上，这里小编在命令执行的过程中也出现了些问题lcov: ERROR: no valid records found in tracefile，后面查找了相关资料发现是因为gcc版本的问题，当小编用gcc&lt;8的版本就能执行成功了。</p>
-<p>后续的话，就可以路径分析了。</p>
-<p><img src="/2020/08/17/afl-fuzz-cov/1597665140917.png" alt="1597665140917"></p>
-<p><img src="/2020/08/17/afl-fuzz-cov/1597665214580.png" alt="1597665214580"></p>
-<p>深度fuzz其实也需要对源码的修改，但这种修改只能基于对一些因为种子的内容导致一些文件检测，校验判断不能通过导致不能深度执行，但不能修改其和内存有关的语句。如果能产生crash，可以反过来修改文件内容从过通过这些判断，可以真正产生crash，后续小编也会尝试这种操作，看能否提高crash的触发概率。</p>
- 
-      <!-- reward -->
-      
-    </div>
-    
-
-    <!-- copyright -->
-    
-    <div class="declare">
-      <ul class="post-copyright">
-        <li>
-          <i class="ri-copyright-line"></i>
-          <strong>Copyright： </strong>
-          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
-        </li>
-      </ul>
-    </div>
-    
-    <footer class="article-footer">
-       
-<div class="share-btn">
-      <span class="share-sns share-outer">
-        <i class="ri-share-forward-line"></i>
-        分享
-      </span>
-      <div class="share-wrap">
-        <i class="arrow"></i>
-        <div class="share-icons">
-          
-          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
-            <i class="ri-weibo-fill"></i>
-          </a>
-          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
-            <i class="ri-wechat-fill"></i>
-          </a>
-          <a class="qq share-sns" href="javascript:;" data-type="qq">
-            <i class="ri-qq-fill"></i>
-          </a>
-          <a class="douban share-sns" href="javascript:;" data-type="douban">
-            <i class="ri-douban-line"></i>
-          </a>
-          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
-            <i class="icon icon-qzone"></i>
-          </a> -->
-          
-          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
-            <i class="ri-facebook-circle-fill"></i>
-          </a>
-          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
-            <i class="ri-twitter-fill"></i>
-          </a>
-          <a class="google share-sns" href="javascript:;" data-type="google">
-            <i class="ri-google-fill"></i>
-          </a>
-        </div>
-      </div>
-</div>
-
-<div class="wx-share-modal">
-    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://yoursite.com/2020/08/17/afl-fuzz-cov/" alt="微信分享二维码">
-    </div>
-</div>
-
-<div id="share-mask"></div>  
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/afl-fuzz%EF%BC%8Cafl-cov%EF%BC%8Ccmake/" rel="tag">afl-fuzz，afl-cov，cmake</a></li></ul>
-
-    </footer>
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/mips-reverse/">mips-reverse</a>
   </div>
 
-   
-  <nav class="article-nav">
-    
-      <a href="/2020/09/06/QWB-re1/" class="article-nav-link">
-        <strong class="article-nav-caption">上一篇</strong>
-        <div class="article-nav-title">
-          
-            QWB-re1
-          
-        </div>
-      </a>
     
     
-      <a href="/2020/08/15/welcome-to-ctf/" class="article-nav-link">
-        <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">WMCTF:welcome-to-ctf</div>
-      </a>
-    
-  </nav>
+  </div>
+</article>
+      
+      
+    </div>
+  </div>
+  
+  
 
   
-     
-</article>
-
 </section>
       <footer class="footer">
   <div class="outer">
@@ -344,23 +238,6 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
-
-
-<script src="/js/tocbot.min.js"></script>
-
-<script>
-  tocbot.init({
-    tocSelector: '.tocbot',
-    contentSelector: '.article-entry',
-    headingSelector: 'h1, h2, h3, h4, h5, h6',
-    hasInnerContainers: true,
-    scrollSmooth: true,
-    scrollContainer: 'main',
-    positionFixedSelector: '.tocbot',
-    positionFixedClass: 'is-position-fixed',
-    fixedSidebarOffset: 'auto'
-  });
-</script>
 
 <script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
