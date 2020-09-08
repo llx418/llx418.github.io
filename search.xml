@@ -16,7 +16,9 @@
         <category>linux-reverse</category>
       </categories>
       <tags>
-        <tag>AES, Chip8, fork</tag>
+        <tag>AES</tag>
+        <tag>Chip8</tag>
+        <tag>fork</tag>
       </tags>
   </entry>
   <entry>
