@@ -13,7 +13,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>
-    Archives: 2020/9 |  a member of BOI
+    QWB-imitation_game |  a member of BOI
   </title>
   <meta name="generator" content="hexo-theme-ayer">
   
@@ -59,92 +59,154 @@
       
     <main class="content on">
       <section class="outer">
-  <article class="articles">
+  <article
+  id="post-QWB-re3"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
     
-    
-    <h1 class="page-type-title">2020/9</h1>
-    
-    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  QWB-imitation_game
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2020/09/08/QWB-re3/" class="article-date">
+  <time datetime="2020-09-08T06:50:20.681Z" itemprop="datePublished">2020-09-08</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/linux-reverse/">linux-reverse</a>
+  </div>
   
-  
-  
-  
-  
-  
-  <div class="archives-wrap">
-    <div class="archive-year-wrap">
-      <a href="/archives/2020" class="archive-year">2020</a>
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">804</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">3 min</span>
+        </span>
+    </span>
+</div>
+ 
     </div>
-    <div class="archives">
       
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2020/09/08/QWB-re3/" class="archive-article-date">
-  <time datetime="2020-09-08T06:50:20.681Z" itemprop="datePublished">09/08</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2020/09/08/QWB-re3/"
-    >QWB-imitation_game</a> 
-</h2>
- 
 
-    </header>
-    
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2020/09/06/QWB-re2/" class="archive-article-date">
-  <time datetime="2020-09-06T11:08:19.993Z" itemprop="datePublished">09/06</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2020/09/06/QWB-re2/"
-    >QWB-firmware_blog</a> 
-</h2>
- 
 
-    </header>
-    
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2020/09/06/QWB-re1/" class="archive-article-date">
-  <time datetime="2020-09-06T11:06:04.060Z" itemprop="datePublished">09/06</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2020/09/06/QWB-re1/"
-    >QWB-xx_warmup_obf</a> 
-</h2>
- 
 
-    </header>
-    
-    
-  </div>
-</article>
-      
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>​    放入IDA后看下string发现存在”Your flag: flag{input1+input2}“字符串，因此可以判断会存在两层输入，用gdb调试下去发现有个cmp edi，2总是过不去，后面发现题目还给了个bin文件因此猜测是作为命令行参数读入，然后就会通过了，继续单步下去会发现fork了一个子进程，然后会ptrace一下，然后会把你的输入填充0x1a补成64字节，又会给你两串16字节的数，越来越有点标准加密的味道了，再更具会发现一个256的表，一查果然是AES的表，再根据给的两串数，猜测是AES,CBC模式加密。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"> <span class="keyword">from</span> Crypto.Cipher <span class="keyword">import</span> AES</span><br><span class="line">key=<span class="string">b&quot;\x3e\x2c\x25\x13\x18\xbe\xc3\x6b\xa1\x37\x24\x53\x03\x1e\x51\xec&quot;</span></span><br><span class="line">iv=<span class="string">b&quot;\x20\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2a\x2b\x2c\x2d\x2e\x2f&quot;</span></span><br><span class="line">enc=<span class="string">b&quot;\x9d&#123;\xa2&lt;\xb1\t\x9aHA\xd1fc\xd6\xae&lt;\xab@\x89\x92\xf3R\xb2\x11\x16\xf5\xea~\x97\xb7\x1c\x011\xe8\x19\x01\x8b+\x91\xbe&amp;2k\xd4%0\\\xc2\x87&quot;</span></span><br><span class="line"><span class="comment">#enc=b&quot;\x35\x24\x66\xbf\xf5\x59\x11\x95\xd0\x0e\xf4\x95\x58\x2c\x2f\xd1\x5d\x58\x22\xe9\x5f\x7f\xaa\x84\x6e\x00\xc2\x1c\x43\x55\xe9\xf3\x91\xfd\x02\x40\x63\x55\xf0\x50\x8a\xb6\xd1\xa5\x28\xfa\x3e\x2c\xd9\x36\xc2\xbb\xc8\x27\xa9\xe8\xc2\x4e\x37\xd7\x6c\x84\xa4\x8f&quot;</span></span><br><span class="line">aes=AES.new(key,AES.MODE_CBC,iv)</span><br><span class="line"><span class="keyword">print</span> (aes.decrypt(enc))</span><br><span class="line"><span class="string">b&#x27;6c8f1d78770fe672122478c6f9a150e4\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a\x1a&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>继续用gdb单步下去就会触发异常，执行不到第二层。这时突然想起之前gdb调试不是fork了一个子进程，但返回一个空的进程号，在gdb里用show follow-fork-mode查看一下发现调试的就是子进程，因此切换成主进程set follow-fork-mode parent，这次再重新调试发现直接进入到第二层了，第二层会读入game.bin文件内容，然后启动一个窗口有点像bochs，会让你输入十个数不对的话会出现dead。</p>
+<p><img src="/2020/09/08/QWB-re3/image-20200908155518934.png" alt="image-20200908155518934"></p>
+<p>后面题目放了提示chip-8，一查资料原来是一个模拟器，有它自己专门汇编语言，在GitHub上也有专门的反编译器。反编译出来的效果如图</p>
+<p><img src="/2020/09/08/QWB-re3/image-20200908155601343.png" alt="image-20200908155601343"></p>
+<p>在维基百科上有所有CHIP8指令含义，他有一个专门的getkey()指令作为从缓冲区读入的接口，从这里开始分析，并结合调试逆向分析，模拟器会把你输入的10个数依次放入V0-V9是个寄存器中，然后每个数会做一个加减亦或运算，然后就是调用0x027a（会传两个参数一个是你输入的数，另一个程序给的），这其实是一个乘法运算，把运算式列出来其实就是10个多元一次方程。方程式如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">V0 &#x3D; V0 + 2</span><br><span class="line">V1 &#x3D; V1 + 1</span><br><span class="line">V2 &#x3D; (V2 + 1) ^ 1</span><br><span class="line">V3 &#x3D; V3 + 3</span><br><span class="line">V4 &#x3D; V2 + 2</span><br><span class="line">V5 &#x3D; (V5^2) + 1</span><br><span class="line">V6 &#x3D; V6 + V6</span><br><span class="line">V7 &#x3D; V7 + 1</span><br><span class="line">V8 &#x3D; (V8 ^ 1) + 1</span><br><span class="line">V9 &#x3D; V9 + 2</span><br><span class="line">V0+V1*2+V2&#x3D;&#x3D;33</span><br><span class="line">V0*2+V1+V2&#x3D;&#x3D;42</span><br><span class="line">V0+2*V1+2*V2&#x3D;&#x3D;48</span><br><span class="line">V3+2*V4+V5&#x3D;&#x3D;55</span><br><span class="line">2*V3+V4+V5&#x3D;&#x3D;55</span><br><span class="line">V3+2*V4+2*V5&#x3D;&#x3D;59</span><br><span class="line">V6+2*V7+V8&#x3D;&#x3D;31</span><br><span class="line">2*V6+V7+V8&#x3D;&#x3D;22</span><br><span class="line">V6+V7*2+V8*2&#x3D;&#x3D;32</span><br><span class="line">V9&#x3D;&#x3D;5</span><br></pre></td></tr></table></figure> 
+      <!-- reward -->
       
     </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://yoursite.com/2020/09/08/QWB-re3/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/AES-Chip8-fork/" rel="tag">AES, Chip8, fork</a></li></ul>
+
+    </footer>
   </div>
-  
-  
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2020/09/06/QWB-re2/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">QWB-firmware_blog</div>
+      </a>
+    
+  </nav>
 
   
+     
+</article>
+
 </section>
       <footer class="footer">
   <div class="outer">
@@ -281,6 +343,23 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">
