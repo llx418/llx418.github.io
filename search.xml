@@ -1,6 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>flow</title>
+    <url>/2020/10/19/flow/</url>
+    <content><![CDATA[<p>这道题感觉都被人做烂了，我也是赛后才做出来，实在是太菜了。</p>
+<p>简单说说这题吧，流程其实就是一个RC4和一个魔改TEA加密，RC4可以通过对IDA中未定义的函数段重新定义后就能看出来。</p>
+<p><img src="/2020/10/19/flow/image-20201019235640204.png" alt="image-20201019235640204"></p>
+<p>TEA的话可以通过findcrypt看出特征值，但魔改的话还得看调试看出来，写这道题的目的还是想了解下SROP技术，帖子的话可以参考这个链接<a href="https://www.freebuf.com/articles/network/87447.html">https://www.freebuf.com/articles/network/87447.html</a></p>
+<p>我的话就根据这个链接讲解下本题是如何利用这项技术的，首先看到IDA未定义的函数末尾都有一个</p>
+<p><img src="/2020/10/19/flow/image-20201020075740296.png" alt="image-20201020075740296"></p>
+<p>syscall系统调用，这是触发<code>sigreturn</code>系统调用的关键代码，执行这段代码将内核为该进程恢复之前保存的上下文，最后恢复进程的执行，而之前的上下文数据都会保存在栈上。</p>
+<p><img src="/2020/10/19/flow/14487175105930.png!small" alt="img"></p>
+<p>在程序读取输入之后，先会做一个ascii转16进制，然后通过构造数据利用memcpy造成栈溢出，在溢出函数最后返回时看下栈上的数据。rt_sigreturn是Signal Frame段的起始位置</p>
+<p><img src="/2020/10/19/flow/image-20201020081142406.png" alt="image-20201020081142406"></p>
+<p>能造成SROP的原理就攻击者可以篡改进程恢复之前保存的上下文数据，伪造恢复之后的状态，在本题中执行syscall后，返回之后的状态就是根据Signal Frame的数据完成的。</p>
+<p><img src="/2020/10/19/flow/image-20201020083124211.png" alt="image-20201020083124211"></p>
+<p>可以看到ip，sp，bp等寄存器都对应Signal Frame上的数据，这样就成功劫持了程序的控制流。后续的话就是动调分析代码了，这里不再详细阐述了。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line">#include &lt;stdint.h&gt;</span><br><span class="line"></span><br><span class="line">void tea_decrypt(uint32_t* v, uint32_t* k) &#123;</span><br><span class="line">    uint32_t v0 &#x3D; v[0], v1 &#x3D; v[1], sum, i;</span><br><span class="line">    uint32_t delta &#x3D; 0x9e3779b9;</span><br><span class="line">    sum &#x3D; delta &lt;&lt; 5;</span><br><span class="line">    uint32_t k0 &#x3D; k[0], k1 &#x3D; k[1], k2 &#x3D; k[2], k3 &#x3D; k[3];</span><br><span class="line">    for (i &#x3D; 0; i&lt;32; i++) &#123;</span><br><span class="line">        v0 -&#x3D; ((v1 &lt;&lt; 4) + k2) ^ (v1 + sum) ^ ((v1 &gt;&gt; 5) + k3);</span><br><span class="line">        v1 -&#x3D; ((v0 &lt;&lt; 4) + k0) ^ (v0 + sum) ^ ((v0 &gt;&gt; 5) + k1);</span><br><span class="line">        sum -&#x3D; delta;</span><br><span class="line">    &#125;</span><br><span class="line">    v[0] &#x3D; v0; v[1] &#x3D; v1;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">void Xor(unsigned int v, uint8_t* k)</span><br><span class="line">&#123;</span><br><span class="line">    int v0 &#x3D; v % 256;</span><br><span class="line">    int v1 &#x3D; (v &gt;&gt; 8) % 256;</span><br><span class="line">    int v2 &#x3D; (v &gt;&gt; 16) % 256;</span><br><span class="line">    int v3 &#x3D; (v &gt;&gt; 24);</span><br><span class="line">    k[0] ^&#x3D; v0;</span><br><span class="line">    k[1] ^&#x3D; v1;</span><br><span class="line">    k[2] ^&#x3D; v2;</span><br><span class="line">    k[3] ^&#x3D; v3;</span><br><span class="line">&#125;</span><br><span class="line">int main()</span><br><span class="line">&#123;</span><br><span class="line">    unsigned int tea_key[4] &#x3D; &#123; 0x79757361,0x79796473,0xDEADBEEF,0xAA114514 &#125;;  &#x2F;&#x2F;解密tea算法的4个key</span><br><span class="line"></span><br><span class="line">    unsigned int c[4] &#x3D; &#123; 0x189BE35C, 0x1109831A, 0x3E530874, 0x4B8898EB&#125;;  &#x2F;&#x2F;密文</span><br><span class="line">        &#x2F;&#x2F; c为要加密的数据是两个32位无符号整数</span><br><span class="line">        &#x2F;&#x2F; k为加密解密密钥，为4个32位无符号整数，即密钥长度为128位</span><br><span class="line">        &#x2F;&#x2F;printf(&quot;加密前原始数据：%u %u\n&quot;,v[0],v[1]);</span><br><span class="line">        &#x2F;&#x2F;encrypt(v, k);</span><br><span class="line">        &#x2F;&#x2F;printf(&quot;加密后的数据：%u %u\n&quot;,v[0],v[1]);</span><br><span class="line">    unsigned char rc4_key[] &#x3D; &#123; 0x60,0xCF,0xB4,0xE7,0x52,0x33,0x98,0xE6,0xC0,0xB5,0x1D,0x8,0x8A,0xE2,0x5E,0x86 &#125;; &#x2F;&#x2F;rc4的密钥</span><br><span class="line">    tea_decrypt(&amp;c[0], tea_key);</span><br><span class="line">    tea_decrypt(&amp;c[2], tea_key);</span><br><span class="line">    for (int i &#x3D; 0; i &lt; 4; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        Xor(c[i], &amp;rc4_key[i * 4]);</span><br><span class="line">    &#125;</span><br><span class="line">    printf(&quot;flag:\n&quot;);</span><br><span class="line">    for (int i &#x3D; 0; i&lt;16; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        printf(&quot;%2x&quot;, rc4_key[i]);</span><br><span class="line">    &#125;</span><br><span class="line">    getchar();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>linux-reverse</category>
+      </categories>
+      <tags>
+        <tag>TEA</tag>
+        <tag>RC4</tag>
+        <tag>SROP</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>re_rs4</title>
     <url>/2020/10/15/re-rs4/</url>
     <content><![CDATA[<p>第一次参加国赛决赛，不得不说比赛保障真的很到位，但比赛平台着实拉跨，第一天的AWD完全乱搞，好奇的话可以去看下知乎的评价。比赛第二天又改为解题赛了，本想着re作为混子到线下顶多修补pwn题，但这回带来的电脑没有工具，所以坑队友了。</p>

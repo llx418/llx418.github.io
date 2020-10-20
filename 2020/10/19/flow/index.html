@@ -13,7 +13,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>
-    re_rs4 |  a member of BOI
+    flow |  a member of BOI
   </title>
   <meta name="generator" content="hexo-theme-ayer">
   
@@ -60,7 +60,7 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="post-re-rs4"
+  id="post-flow"
   class="article article-type-post"
   itemscope
   itemprop="blogPost"
@@ -71,15 +71,15 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  re_rs4
+  flow
 </h1>
  
 
     </header>
      
     <div class="article-meta">
-      <a href="/2020/10/15/re-rs4/" class="article-date">
-  <time datetime="2020-10-15T08:39:12.494Z" itemprop="datePublished">2020-10-15</time>
+      <a href="/2020/10/19/flow/" class="article-date">
+  <time datetime="2020-10-19T12:15:53.313Z" itemprop="datePublished">2020-10-19</time>
 </a> 
   <div class="article-category">
     <a class="article-category-link" href="/categories/linux-reverse/">linux-reverse</a>
@@ -90,7 +90,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> Word count:</span>
-            <span class="post-count">641</span>
+            <span class="post-count">788</span>
         </span>
     </span>
 
@@ -99,7 +99,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> Reading time≈</span>
-            <span class="post-count">2 min</span>
+            <span class="post-count">3 min</span>
         </span>
     </span>
 </div>
@@ -112,16 +112,21 @@
   
     <div class="article-entry" itemprop="articleBody">
        
-  <p>第一次参加国赛决赛，不得不说比赛保障真的很到位，但比赛平台着实拉跨，第一天的AWD完全乱搞，好奇的话可以去看下知乎的评价。比赛第二天又改为解题赛了，本想着re作为混子到线下顶多修补pwn题，但这回带来的电脑没有工具，所以坑队友了。</p>
-<p>先说说这次比赛的题目吧，一道是re_rs4一个图形加解密题，一道是re_babyriscv一个是riscv架构的逆向题，riscv至今也没研究出来，先说说re_rs4吧。这道题里面有plt.sec，导致好多函数看起来十分复杂，而且不论静态还是动态都找不到一处最后结果判断的地方。而且题目给你的只有一个output文件，在IDA中又会莫名其妙的看见一个secret文件，唯一有线索的地方是通过findcrypt找到TEA算法。后面就动态调试看看。</p>
-<p><img src="/2020/10/15/re-rs4/image-20201015102430692.png" alt="image-20201015102430692"></p>
-<p>要进入if判断首先得在你的当前目录下有一个secret.jpg，并且在执行程序时必须将该程作为参数带入执行，然后在sub_1FE8A函数下有</p>
-<p><img src="/2020/10/15/re-rs4/image-20201015150410958.png" alt="image-20201015150410958"></p>
-<p>这个循环就是一个一个字节读入你的secret.jpg内容，再进入到sub_1F3B5，里面有一个大循环，进入大循环后大概就是将secret.jpg内容中看成是一个DWORD数组，然后对你的每个DWORD下标做一个判断，然后将每两个DWORD做小端处理，作为TEA加密的明文，密钥就是你输入的16字节，根据TEA加密形式，它有一个4个DWORD的密钥，这就是你的输入，在main函数中有一个专门的函数他会做一个小端的转化处理</p>
-<p><img src="/2020/10/15/re-rs4/image-20201015164217812.png" alt="image-20201015164217812"></p>
-<p>然后会将secret.jpg内容中每两个DWORD大小的内容作为TEA加密的明文</p>
-<p><img src="/2020/10/15/re-rs4/image-20201015165047101.png" alt="image-20201015165047101"></p>
-<p>最后就是将你的加密内容输出到output.jpg文件，虽然题目中没有一个明显的比较和判断，但通过正向分析慢慢的理解程序流程，其实难度就在于函数过多且比赛现场没有公网查资料也很难，最后的exp就是一个爆破密钥的过程。但由于key是一个长度为4的DWORD数组，爆破必然费时，所以可以先尝试单字节爆破，假设每个DWORD其实只有一个字节大小。这样最后居然可以爆破成功。最后由于参考了别人的exp就不展示了。</p>
+  <p>这道题感觉都被人做烂了，我也是赛后才做出来，实在是太菜了。</p>
+<p>简单说说这题吧，流程其实就是一个RC4和一个魔改TEA加密，RC4可以通过对IDA中未定义的函数段重新定义后就能看出来。</p>
+<p><img src="/2020/10/19/flow/image-20201019235640204.png" alt="image-20201019235640204"></p>
+<p>TEA的话可以通过findcrypt看出特征值，但魔改的话还得看调试看出来，写这道题的目的还是想了解下SROP技术，帖子的话可以参考这个链接<a target="_blank" rel="noopener" href="https://www.freebuf.com/articles/network/87447.html">https://www.freebuf.com/articles/network/87447.html</a></p>
+<p>我的话就根据这个链接讲解下本题是如何利用这项技术的，首先看到IDA未定义的函数末尾都有一个</p>
+<p><img src="/2020/10/19/flow/image-20201020075740296.png" alt="image-20201020075740296"></p>
+<p>syscall系统调用，这是触发<code>sigreturn</code>系统调用的关键代码，执行这段代码将内核为该进程恢复之前保存的上下文，最后恢复进程的执行，而之前的上下文数据都会保存在栈上。</p>
+<p><img src="/2020/10/19/flow/14487175105930.png!small" alt="img"></p>
+<p>在程序读取输入之后，先会做一个ascii转16进制，然后通过构造数据利用memcpy造成栈溢出，在溢出函数最后返回时看下栈上的数据。rt_sigreturn是Signal Frame段的起始位置</p>
+<p><img src="/2020/10/19/flow/image-20201020081142406.png" alt="image-20201020081142406"></p>
+<p>能造成SROP的原理就攻击者可以篡改进程恢复之前保存的上下文数据，伪造恢复之后的状态，在本题中执行syscall后，返回之后的状态就是根据Signal Frame的数据完成的。</p>
+<p><img src="/2020/10/19/flow/image-20201020083124211.png" alt="image-20201020083124211"></p>
+<p>可以看到ip，sp，bp等寄存器都对应Signal Frame上的数据，这样就成功劫持了程序的控制流。后续的话就是动调分析代码了，这里不再详细阐述了。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line">#include &lt;stdint.h&gt;</span><br><span class="line"></span><br><span class="line">void tea_decrypt(uint32_t* v, uint32_t* k) &#123;</span><br><span class="line">    uint32_t v0 &#x3D; v[0], v1 &#x3D; v[1], sum, i;</span><br><span class="line">    uint32_t delta &#x3D; 0x9e3779b9;</span><br><span class="line">    sum &#x3D; delta &lt;&lt; 5;</span><br><span class="line">    uint32_t k0 &#x3D; k[0], k1 &#x3D; k[1], k2 &#x3D; k[2], k3 &#x3D; k[3];</span><br><span class="line">    for (i &#x3D; 0; i&lt;32; i++) &#123;</span><br><span class="line">        v0 -&#x3D; ((v1 &lt;&lt; 4) + k2) ^ (v1 + sum) ^ ((v1 &gt;&gt; 5) + k3);</span><br><span class="line">        v1 -&#x3D; ((v0 &lt;&lt; 4) + k0) ^ (v0 + sum) ^ ((v0 &gt;&gt; 5) + k1);</span><br><span class="line">        sum -&#x3D; delta;</span><br><span class="line">    &#125;</span><br><span class="line">    v[0] &#x3D; v0; v[1] &#x3D; v1;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">void Xor(unsigned int v, uint8_t* k)</span><br><span class="line">&#123;</span><br><span class="line">    int v0 &#x3D; v % 256;</span><br><span class="line">    int v1 &#x3D; (v &gt;&gt; 8) % 256;</span><br><span class="line">    int v2 &#x3D; (v &gt;&gt; 16) % 256;</span><br><span class="line">    int v3 &#x3D; (v &gt;&gt; 24);</span><br><span class="line">    k[0] ^&#x3D; v0;</span><br><span class="line">    k[1] ^&#x3D; v1;</span><br><span class="line">    k[2] ^&#x3D; v2;</span><br><span class="line">    k[3] ^&#x3D; v3;</span><br><span class="line">&#125;</span><br><span class="line">int main()</span><br><span class="line">&#123;</span><br><span class="line">    unsigned int tea_key[4] &#x3D; &#123; 0x79757361,0x79796473,0xDEADBEEF,0xAA114514 &#125;;  &#x2F;&#x2F;解密tea算法的4个key</span><br><span class="line"></span><br><span class="line">    unsigned int c[4] &#x3D; &#123; 0x189BE35C, 0x1109831A, 0x3E530874, 0x4B8898EB&#125;;  &#x2F;&#x2F;密文</span><br><span class="line">        &#x2F;&#x2F; c为要加密的数据是两个32位无符号整数</span><br><span class="line">        &#x2F;&#x2F; k为加密解密密钥，为4个32位无符号整数，即密钥长度为128位</span><br><span class="line">        &#x2F;&#x2F;printf(&quot;加密前原始数据：%u %u\n&quot;,v[0],v[1]);</span><br><span class="line">        &#x2F;&#x2F;encrypt(v, k);</span><br><span class="line">        &#x2F;&#x2F;printf(&quot;加密后的数据：%u %u\n&quot;,v[0],v[1]);</span><br><span class="line">    unsigned char rc4_key[] &#x3D; &#123; 0x60,0xCF,0xB4,0xE7,0x52,0x33,0x98,0xE6,0xC0,0xB5,0x1D,0x8,0x8A,0xE2,0x5E,0x86 &#125;; &#x2F;&#x2F;rc4的密钥</span><br><span class="line">    tea_decrypt(&amp;c[0], tea_key);</span><br><span class="line">    tea_decrypt(&amp;c[2], tea_key);</span><br><span class="line">    for (int i &#x3D; 0; i &lt; 4; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        Xor(c[i], &amp;rc4_key[i * 4]);</span><br><span class="line">    &#125;</span><br><span class="line">    printf(&quot;flag:\n&quot;);</span><br><span class="line">    for (int i &#x3D; 0; i&lt;16; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        printf(&quot;%2x&quot;, rc4_key[i]);</span><br><span class="line">    &#125;</span><br><span class="line">    getchar();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
  
       <!-- reward -->
       
@@ -184,12 +189,12 @@
     <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://yoursite.com/2020/10/15/re-rs4/" alt="微信分享二维码">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://yoursite.com/2020/10/19/flow/" alt="微信分享二维码">
     </div>
 </div>
 
 <div id="share-mask"></div>  
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/TEA/" rel="tag">TEA</a></li></ul>
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/RC4/" rel="tag">RC4</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/SROP/" rel="tag">SROP</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/TEA/" rel="tag">TEA</a></li></ul>
 
     </footer>
   </div>
@@ -197,19 +202,10 @@
    
   <nav class="article-nav">
     
-      <a href="/2020/10/19/flow/" class="article-nav-link">
-        <strong class="article-nav-caption">上一篇</strong>
-        <div class="article-nav-title">
-          
-            flow
-          
-        </div>
-      </a>
     
-    
-      <a href="/2020/09/08/QWB-re3/" class="article-nav-link">
+      <a href="/2020/10/15/re-rs4/" class="article-nav-link">
         <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">QWB-imitation_game</div>
+        <div class="article-nav-title">re_rs4</div>
       </a>
     
   </nav>
