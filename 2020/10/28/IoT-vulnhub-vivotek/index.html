@@ -13,7 +13,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>
-    tags |  a member of BOI
+    IoT-vulnhub:vivotek |  a member of BOI
   </title>
   <meta name="generator" content="hexo-theme-ayer">
   
@@ -59,13 +59,172 @@
       
     <main class="content on">
       <section class="outer">
+  <article
+  id="post-IoT-vulnhub-vivotek"
+  class="article article-type-post"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  IoT-vulnhub:vivotek
+</h1>
+ 
+
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2020/10/28/IoT-vulnhub-vivotek/" class="article-date">
+  <time datetime="2020-10-28T08:34:25.501Z" itemprop="datePublished">2020-10-28</time>
+</a>   
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> Word count:</span>
+            <span class="post-count">862</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> Reading time≈</span>
+            <span class="post-count">3 min</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
   
-    <h1 class="page-type-title">Tags</h1>
-    <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/AES/" rel="tag">AES</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Chip8/" rel="tag">Chip8</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/RC4/" rel="tag">RC4</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/RSA/" rel="tag">RSA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SROP/" rel="tag">SROP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/TEA/" rel="tag">TEA</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/UEF/" rel="tag">UEF</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/VEH/" rel="tag">VEH</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/VM/" rel="tag">VM</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/afl-cov/" rel="tag">afl-cov</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/afl-fuzz/" rel="tag">afl-fuzz</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/angr/" rel="tag">angr</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/anti-debug/" rel="tag">anti-debug</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cmake/" rel="tag">cmake</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/docker/" rel="tag">docker</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/fork/" rel="tag">fork</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/httpd/" rel="tag">httpd</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/over-flow/" rel="tag">over-flow</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E9%AD%94%E6%94%B9base64/" rel="tag">魔改base64</a></li></ul>
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>之前一直在为IOT设备调试环境而烦恼，总是因为环境启动不起来导致放弃调试，也是偶然间在github上发现了这个IoT-vulnhub项目，这是个基于dockers搭好的环境，里面已经将环境布置好了，直接docker build一下就能用，但由于dockerhub的原因，把博主之前搭好的环境都从hub上删掉了，但还好dockerfile都有直接本地build不从dockerhub上pull就行，整个步骤稍微和博主之前说的有些不同，首先得基于ubuntu16.04构建一个基础镜像，其他的镜像像binwalk、qemu、firmdyne都是基于这个镜像做的一个升级，所以直接改dockerfile的文件头部名称from 接上你构建的ubuntu16.04的容器名称就行，然后如果觉得有些配置需要装上的，也可以直接在dockerfile里面修改，我就稍微改了下qemu-system的dockerfile安装了一个pwndbg。</p>
+<p>后面就如漏洞调试环节了，这是一个摄像头的缓冲区溢出漏洞，是一个2017的漏洞，网上到处都是解析，所以我就不详细分析了，大概讲一下，主要还是讲述怎么依据这个平台调试这个漏洞。按照博主的介绍要通过qemu-system调试这个漏洞按照下面三条命令就能顺利进入你的环境了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">docker-compose -f docker-compose-system.yml build</span><br><span class="line">docker-compose -f docker-compose-system.yml up</span><br><span class="line">docker exec -it vivotek-system &#x2F;bin&#x2F;bash</span><br></pre></td></tr></table></figure>
+
+<p>这个环境的优势在于利用docker的优势不需要在网络配置上下很多的功夫，你的测试机是能和你的物理机相通并且开放了ssh连接，你的靶机也是和你的测试机处在一个内网段上，通过ssh也能连接上，传输什么的就很方便，进入到测试机上可以看见什么pwntools还有gdb什么的都有，就是一个能做pwn题的ubuntu16的虚拟机，通过scp命令将gdbserver传递到靶机，开放端口附加到httpd的进程就行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.&#x2F;arm-gdbserver :port --attach PID</span><br></pre></td></tr></table></figure>
+
+<p>然后测试机上用gdb-multiarch squashfs-root/usr/sbin/httpd -q启动调试，进入到pwndbg下还有输入下面两条命令</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">set sysroot 固件的目录 &#x2F;用于加载符号表</span><br><span class="line">target remote ip:port</span><br></pre></td></tr></table></figure>
+
+<p>这样就已经附加上靶机上的进程了，这时候通过tools目录下给的poc.sh进行测试。</p>
+<p><img src="/2020/10/28/IoT-vulnhub-vivotek/image-20201104230229346.png" alt="image-20201104230229346"></p>
+<p><img src="/2020/10/28/IoT-vulnhub-vivotek/image-20201104231320489.png" alt="image-20201104231320489"></p>
+<p>可以看到此时的PC为构造好的输入XXXX，说明成功触发了漏洞，再看下libc的地址。</p>
+<p><img src="/2020/10/28/IoT-vulnhub-vivotek/image-20201104232522359.png" alt="image-20201104232522359"></p>
+<p>和exp的一样，后续的话就在尝试用exp拿shell了，但在这之前由于poc.sh导致httpd服务宕机，所以还需要在靶机上重启该服务，命令为</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">chroot squashfs-root&#x2F; sh</span><br><span class="line">&#x2F;usr&#x2F;sbin&#x2F;httpd</span><br></pre></td></tr></table></figure>
+
+<p>由于测试机上装的是python3的pwntools，由于python3对字节流和字符串有着明显的划分，所以脚本会报错，所以得将里面的字符串用bytes(str,encoding=’utf-8’)做一个转换，然后将payload输出到一个exp.sh的shell文件，按道理来说直接执行这个shell就能达到目的了，但还是因为python3对字节流和字符串的处理导致最后的payload的格式是b’str’把b、’‘这些标识符也读进去了，因此还得用python2的pwntools直接物理机执行exp.py生成exp.sh就能成功获取shell了。</p>
+<p><img src="/2020/10/28/IoT-vulnhub-vivotek/image-20201105143443954.png" alt="image-20201105143443954"></p>
+ 
+      <!-- reward -->
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>Copyright： </strong>
+          Copyright is owned by the author. For commercial reprints, please contact the author for authorization. For non-commercial reprints, please indicate the source.
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://yoursite.com/2020/10/28/IoT-vulnhub-vivotek/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/docker/" rel="tag">docker</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/httpd/" rel="tag">httpd</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/over-flow/" rel="tag">over-flow</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2020/11/03/UnravelMFC/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            UnravelMFC
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2020/10/19/flow/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">flow</div>
+      </a>
+    
+  </nav>
+
   
+     
+</article>
+
 </section>
-
-
       <footer class="footer">
   <div class="outer">
     <ul>
@@ -201,6 +360,23 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
+
+
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: '.tocbot',
+    contentSelector: '.article-entry',
+    headingSelector: 'h1, h2, h3, h4, h5, h6',
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: 'main',
+    positionFixedSelector: '.tocbot',
+    positionFixedClass: 'is-position-fixed',
+    fixedSidebarOffset: 'auto'
+  });
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-modal@0.9.2/jquery.modal.min.css">

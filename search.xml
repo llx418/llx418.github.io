@@ -1,6 +1,74 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>UnravelMFC</title>
+    <url>/2020/11/03/UnravelMFC/</url>
+    <content><![CDATA[<p>XNUCA实在是太难了，连这个XNUCA做出来人数最多的一题我都做了接近两天才弄出来，还是太菜了。</p>
+<p>本题是一个MFC题有输入框但无论你怎么输入，始终无法点击那个确认按钮，我也是醉了这个地方，后面就在import表中找到GetWindowTextW，GetDlgItemTextW函数下断但始终没断下来，后面于是换了个思路用xspy工具扫它找到它几个button所对应的函数，然后下断。</p>
+<p><img src="/2020/11/03/UnravelMFC/image-20201103154713519.png" alt="image-20201103154713519"></p>
+<p>定位了三个函数，其中断在了sub_5A13A0这个函数，终于发现里面有个判断长度的地方</p>
+<p><img src="/2020/11/03/UnravelMFC/image-20201103154956457.png" alt="image-20201103154956457"></p>
+<p>但恶心的是你的输入框最多只允许你输入0x3f长度，所以不管你怎么输入都过不了这个判断。这也难怪窗体上那个确认键无法触发了，将这个判断patch掉，就能顺利来到了sub_5A1080这个函数，前面一大串都是些无用的函数，直到这个判断</p>
+<p><img src="/2020/11/03/UnravelMFC/image-20201103160415658.png" alt="image-20201103160415658"></p>
+<p>里面有一个很奇怪的字符，进去看了以下就是flag正确，以UTF-16LE的格式存储的，难怪string不出来</p>
+<p><img src="/2020/11/03/UnravelMFC/image-20201103160556235.png" alt="image-20201103160556235"></p>
+<p>到这里基本上就能确定关键函数的位置了，第一个判断函数是做了一个RC4加密，把亦或的key dump出来就行，然后又做了个魔改base64（函数好像做了控制流平坦化，这个要调试才能看出来）</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">key&#x3D;[0x40,0x28,0xb6,0x5c,0xd3,0x84,0x5c,0x1a,0xe0,0x18,0xfd,0x3f,0x5d,0xce,0xf6,0xbb,0x3d,0x46,0x43,0x82,0x7a,0xa9,0x5c,0xe3,0xe4,0x48,0xfd,0xa5,0xb9,0x39,0x7b,0xd4,0xfe,0xfe]</span><br><span class="line">#input[:0x1b]^key</span><br><span class="line">#base64encode()</span><br><span class="line">from z3 import *</span><br><span class="line">import base64</span><br><span class="line">import string</span><br><span class="line">print(len(key))</span><br><span class="line">str1 &#x3D; &quot;$HM%&#x2F;NEX,79PBN\C&#x2F;BQLVSW,*&#x2F;&#39;8T#UMC4%EG@@@,.%5&quot;</span><br><span class="line"></span><br><span class="line">string1 &#x3D; &quot;#$%&amp;&#39;()*+,-.&#x2F;0123456789:;&lt;&#x3D;&gt;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_&#96;ab&quot;</span><br><span class="line">string2 &#x3D; &quot;ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+&#x2F;&quot;</span><br><span class="line">tmp&#x3D;base64.b64decode(str1.translate(str.maketrans(string1,string2)))</span><br><span class="line">print(len(tmp))</span><br><span class="line">flag&#x3D;&quot;&quot;</span><br><span class="line">for i in range(0x21):</span><br><span class="line">    flag+&#x3D;chr(tmp[i]^key[i])</span><br><span class="line">print (flag)</span><br><span class="line">#Fr4nk1y_MfC_l5_t0O_ComPIeX_4nd_dl</span><br></pre></td></tr></table></figure>
+
+<p>这就是前半段的解，第二个函数先是判断你的第二段的首字符是不是“f”，然后将你的输入做了一个DWORD小端转换，之后就是做了一个魔改的TEA加密但这个加密只改了delta，其它像运算过程是没改的，后面就到了比较部分了，这又是一个坑人的地方。它将最后的生成的密文分成4段64位，res[0]，res[1]，res[2]，res[3]，其中res[1]==0xDF3634AE2F9970FF。</p>
+<p><img src="/2020/11/03/UnravelMFC/image-20201103162005697.png" alt="image-20201103162005697"></p>
+<p>然后下一步判断是一个加减法运算</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">(res[2]-res[0]&#x3D;&#x3D;0x3F66B755B4490579)</span><br><span class="line">(res[3]+res[0]&#x3D;&#x3D;0x1162F924623D2CAE0)</span><br><span class="line">(res[3]-res[2]&#x3D;&#x3D;0x7C3C71F1B295D77F)</span><br></pre></td></tr></table></figure>
+
+<p><img src="/2020/11/03/UnravelMFC/image-20201103162842110.png" alt="image-20201103162842110"></p>
+<p>从判断函数上看res[3]+res[0]==0x162F924623D2CAE0，但后面通过这个解出来的值再做TEA解密有不可见字符，经过其他的师傅提醒才发现这里会有一个溢出，所以进一位尝试发现这样才有可行解，最终解出来是</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">from z3 import *</span><br><span class="line">s&#x3D;Solver()</span><br><span class="line">x&#x3D;Int(&#39;x&#39;)</span><br><span class="line">y&#x3D;Int(&#39;y&#39;)</span><br><span class="line">z&#x3D;Int(&#39;z&#39;)</span><br><span class="line">s.add(y-x&#x3D;&#x3D;0x3F66B755B4490579)</span><br><span class="line">s.add(z+x&#x3D;&#x3D;0x1162F924623D2CAE0)</span><br><span class="line">s.add(z-y&#x3D;&#x3D;0x7C3C71F1B295D77F)</span><br><span class="line">print s.check()</span><br><span class="line">print s.model()</span><br><span class="line">key1&#x3D;[0xD9610D02, 0x2AADA57D, 0xA37537F1, 0xC29E3913]</span><br><span class="line">key2&#x3D;[0xD5942CE8, 0x608CCE66, 0x6D593422, 0x21E5D6F2]</span><br><span class="line">key3&#x3D;[0xED3A9235, 0x9DAD62C4, 0x3856641B, 0x71F75B9D]</span><br><span class="line">key4&#x3D;[0xDCDEDAE8, 0xEAD2D1A0, 0xBAC4F564, 0xDA4772AC]</span><br><span class="line">res1: 0x2D46347F  0x5E79F6F4</span><br><span class="line"></span><br><span class="line">res2: 0xDF3634AE  0x2F9970FF  </span><br><span class="line"></span><br><span class="line">res3: 0x6CACEBD5  0x12C2FC6D</span><br><span class="line"></span><br><span class="line">res4: 0xe8E95DC6  0xC558D3EC</span><br></pre></td></tr></table></figure>
+
+<p>再用魔改TEA解密出来</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">#include &lt;stdio.h&gt;  </span><br><span class="line">#include &lt;stdint.h&gt;  </span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;加密函数  </span><br><span class="line">void encrypt(uint32_t* v, uint32_t* k) &#123;</span><br><span class="line">    uint32_t v0 &#x3D; v[0], v1 &#x3D; v[1], sum &#x3D; 0, i;           &#x2F;* set up *&#x2F;</span><br><span class="line">    uint32_t delta &#x3D; 0x9e3779b9;                     &#x2F;* a key schedule constant *&#x2F;</span><br><span class="line">    uint32_t k0 &#x3D; k[0], k1 &#x3D; k[1], k2 &#x3D; k[2], k3 &#x3D; k[3];   &#x2F;* cache key *&#x2F;</span><br><span class="line">    for (i &#x3D; 0; i &lt; 32; i++) &#123;                       &#x2F;* basic cycle start *&#x2F;</span><br><span class="line">        sum +&#x3D; delta;</span><br><span class="line">        v0 +&#x3D; ((v1 &lt;&lt; 4) + k0) ^ (v1 + sum) ^ ((v1 &gt;&gt; 5) + k1);</span><br><span class="line">        v1 +&#x3D; ((v0 &lt;&lt; 4) + k2) ^ (v0 + sum) ^ ((v0 &gt;&gt; 5) + k3);</span><br><span class="line">    &#125;                                              &#x2F;* end cycle *&#x2F;</span><br><span class="line">    v[0] &#x3D; v0; v[1] &#x3D; v1;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;解密函数  </span><br><span class="line">void decrypt(uint32_t* v, uint32_t* k) &#123;</span><br><span class="line">    uint32_t v0 &#x3D; v[0], v1 &#x3D; v[1], sum &#x3D; 0x2433B95A&lt;&lt;5, i;  &#x2F;* set up *&#x2F;</span><br><span class="line">    uint32_t delta &#x3D; 0x2433B95A;                     &#x2F;* a key schedule constant *&#x2F;</span><br><span class="line">    uint32_t k0 &#x3D; k[0], k1 &#x3D; k[1], k2 &#x3D; k[2], k3 &#x3D; k[3];   &#x2F;* cache key *&#x2F;</span><br><span class="line">    for (i &#x3D; 0; i&lt;32; i++) &#123;                         &#x2F;* basic cycle start *&#x2F;</span><br><span class="line">        v1 -&#x3D; ((v0 &lt;&lt; 4) + k2) ^ (v0 + sum) ^ ((v0 &gt;&gt; 5) + k3);</span><br><span class="line">        v0 -&#x3D; ((v1 &lt;&lt; 4) + k0) ^ (v1 + sum) ^ ((v1 &gt;&gt; 5) + k1);</span><br><span class="line">        sum -&#x3D; delta;</span><br><span class="line">    &#125;                                              &#x2F;* end cycle *&#x2F;</span><br><span class="line">    v[0] &#x3D; v0; v[1] &#x3D; v1;</span><br><span class="line">&#125;</span><br><span class="line">void get_byte(uint32_t t)</span><br><span class="line">&#123;</span><br><span class="line">    char tmp[4];</span><br><span class="line">    int i;</span><br><span class="line">    for (i &#x3D; 0; i &lt; 4; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        tmp[i] &#x3D; (t &gt;&gt; (8 * i)) &amp; 0xff;</span><br><span class="line">    &#125;</span><br><span class="line">    for (i &#x3D; 0; i &lt; 4; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        printf(&quot;%c&quot;, tmp[i]);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">int main()</span><br><span class="line">&#123;</span><br><span class="line">    uint32_t v[8] &#x3D; &#123; 0x2D46347F,0x5E79F6F4,0xDF3634AE,0x2F9970FF,0x6CACEBD5,0x12C2FC6D,0xe8E95DC6,0xC558D3EC &#125;, k[16] &#x3D; &#123; 0xD9610D02, 0x2AADA57D, 0xA37537F1, 0xC29E3913, 0xD5942CE8, 0x608CCE66, 0x6D593422, 0x21E5D6F2,0xED3A9235, 0x9DAD62C4, 0x3856641B, 0x71F75B9D,0xDCDEDAE8, 0xEAD2D1A0, 0xBAC4F564, 0xDA4772AC &#125;;</span><br><span class="line">    int i;</span><br><span class="line">    for (i &#x3D; 0; i &lt; 4; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        decrypt(&amp;v[2 * i], &amp;k[4 * i]);</span><br><span class="line">        printf(&quot;解密后的数据：%x %x\n&quot;, v[2*i], v[2*i+1]);</span><br><span class="line">    &#125;</span><br><span class="line">    for (i &#x3D; 0; i &lt; 8; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        get_byte(v[i]);</span><br><span class="line">    &#125;</span><br><span class="line">    getchar();</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br><span class="line">#f1cUlt_foR_THe_r0Ok1E_t0_REver5e</span><br></pre></td></tr></table></figure>
+
+<p>拼在一起就是</p>
+<p>Fr4nk1y_MfC_l5_t0O_ComPIeX_4nd_dlff1cUlt_foR_THe_r0Ok1E_t0_REver5e</p>
+]]></content>
+      <categories>
+        <category>windows-reverse</category>
+      </categories>
+      <tags>
+        <tag>魔改base64</tag>
+        <tag>TEA</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>IoT-vulnhub:vivotek</title>
+    <url>/2020/10/28/IoT-vulnhub-vivotek/</url>
+    <content><![CDATA[<p>之前一直在为IOT设备调试环境而烦恼，总是因为环境启动不起来导致放弃调试，也是偶然间在github上发现了这个IoT-vulnhub项目，这是个基于dockers搭好的环境，里面已经将环境布置好了，直接docker build一下就能用，但由于dockerhub的原因，把博主之前搭好的环境都从hub上删掉了，但还好dockerfile都有直接本地build不从dockerhub上pull就行，整个步骤稍微和博主之前说的有些不同，首先得基于ubuntu16.04构建一个基础镜像，其他的镜像像binwalk、qemu、firmdyne都是基于这个镜像做的一个升级，所以直接改dockerfile的文件头部名称from 接上你构建的ubuntu16.04的容器名称就行，然后如果觉得有些配置需要装上的，也可以直接在dockerfile里面修改，我就稍微改了下qemu-system的dockerfile安装了一个pwndbg。</p>
+<p>后面就如漏洞调试环节了，这是一个摄像头的缓冲区溢出漏洞，是一个2017的漏洞，网上到处都是解析，所以我就不详细分析了，大概讲一下，主要还是讲述怎么依据这个平台调试这个漏洞。按照博主的介绍要通过qemu-system调试这个漏洞按照下面三条命令就能顺利进入你的环境了</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">docker-compose -f docker-compose-system.yml build</span><br><span class="line">docker-compose -f docker-compose-system.yml up</span><br><span class="line">docker exec -it vivotek-system &#x2F;bin&#x2F;bash</span><br></pre></td></tr></table></figure>
+
+<p>这个环境的优势在于利用docker的优势不需要在网络配置上下很多的功夫，你的测试机是能和你的物理机相通并且开放了ssh连接，你的靶机也是和你的测试机处在一个内网段上，通过ssh也能连接上，传输什么的就很方便，进入到测试机上可以看见什么pwntools还有gdb什么的都有，就是一个能做pwn题的ubuntu16的虚拟机，通过scp命令将gdbserver传递到靶机，开放端口附加到httpd的进程就行</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">.&#x2F;arm-gdbserver :port --attach PID</span><br></pre></td></tr></table></figure>
+
+<p>然后测试机上用gdb-multiarch squashfs-root/usr/sbin/httpd -q启动调试，进入到pwndbg下还有输入下面两条命令</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">set sysroot 固件的目录 &#x2F;用于加载符号表</span><br><span class="line">target remote ip:port</span><br></pre></td></tr></table></figure>
+
+<p>这样就已经附加上靶机上的进程了，这时候通过tools目录下给的poc.sh进行测试。</p>
+<p><img src="/2020/10/28/IoT-vulnhub-vivotek/image-20201104230229346.png" alt="image-20201104230229346"></p>
+<p><img src="/2020/10/28/IoT-vulnhub-vivotek/image-20201104231320489.png" alt="image-20201104231320489"></p>
+<p>可以看到此时的PC为构造好的输入XXXX，说明成功触发了漏洞，再看下libc的地址。</p>
+<p><img src="/2020/10/28/IoT-vulnhub-vivotek/image-20201104232522359.png" alt="image-20201104232522359"></p>
+<p>和exp的一样，后续的话就在尝试用exp拿shell了，但在这之前由于poc.sh导致httpd服务宕机，所以还需要在靶机上重启该服务，命令为</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">chroot squashfs-root&#x2F; sh</span><br><span class="line">&#x2F;usr&#x2F;sbin&#x2F;httpd</span><br></pre></td></tr></table></figure>
+
+<p>由于测试机上装的是python3的pwntools，由于python3对字节流和字符串有着明显的划分，所以脚本会报错，所以得将里面的字符串用bytes(str,encoding=’utf-8’)做一个转换，然后将payload输出到一个exp.sh的shell文件，按道理来说直接执行这个shell就能达到目的了，但还是因为python3对字节流和字符串的处理导致最后的payload的格式是b’str’把b、’‘这些标识符也读进去了，因此还得用python2的pwntools直接物理机执行exp.py生成exp.sh就能成功获取shell了。</p>
+<p><img src="/2020/10/28/IoT-vulnhub-vivotek/image-20201105143443954.png" alt="image-20201105143443954"></p>
+]]></content>
+      <tags>
+        <tag>over-flow</tag>
+        <tag>httpd</tag>
+        <tag>docker</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>flow</title>
     <url>/2020/10/19/flow/</url>
     <content><![CDATA[<p>这道题感觉都被人做烂了，我也是赛后才做出来，实在是太菜了。</p>
